@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<!--
+  眼健康自查助手 · 单页前端（问诊 → 辨证报告 → 历史查询）
+  @author  杨博 (yangbo621@163.com)
+  @license Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
+           https://creativecommons.org/licenses/by-nc/4.0/
+           （详见随包 LICENSE.txt / NOTICE.md；商业使用需另行获得书面授权）
+-->
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>眼健康自查助手 · 四步辨证咨询</title>
+<style>
+:root{
+  --ink:#22303f; --ink2:#5b6b78; --green:#1f5f4f; --green2:#2e7d68;
+  --green-bg:#e9f3ee; --amber:#b45309; --amber-bg:#fff4e5;
+  --red:#b3261e; --red-bg:#fdecea; --bg:#fbfaf7; --card:#fff; --border:#e6e2d8;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--ink);line-height:1.75}
+.wrap{max-width:900px;margin:0 auto;padding:28px 20px 80px}
+
+header{text-align:center;padding:26px 0 18px}
+header h1{margin:0;font-size:26px;color:var(--green);letter-spacing:.5px}
+header p{margin:8px 0 0;color:var(--ink2);font-size:14px}
+
+/* 四步流程指示 */
+.steps{display:flex;gap:8px;justify-content:center;margin:22px 0 26px;flex-wrap:wrap}
+.step{display:flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--border);
+  border-radius:20px;padding:6px 14px;font-size:13px;color:var(--ink2)}
+.step b{display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--green-bg);
+  color:var(--green);align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.step.active{border-color:var(--green);background:var(--green-bg);color:var(--green);font-weight:600}
+
+.meta{text-align:center;font-size:12px;color:var(--ink2);margin-bottom:18px}
+
+/* 问卷卡片 */
+.qcard{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:18px 20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.qhead{display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap}
+.qno{background:var(--green);color:#fff;width:24px;height:24px;border-radius:6px;display:inline-flex;
+  align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none}
+.qtitle{font-size:16px;font-weight:600;flex:1;min-width:200px}
+.qtag{font-size:11px;color:var(--green);background:var(--green-bg);padding:2px 9px;border-radius:10px;white-space:nowrap}
+.qhint{font-size:12.5px;color:var(--ink2);margin:6px 0 12px;padding-left:34px}
+.opts{display:flex;flex-direction:column;gap:8px;padding-left:34px}
+.opt{display:flex;align-items:flex-start;gap:9px;border:1px solid var(--border);border-radius:9px;
+  padding:9px 13px;cursor:pointer;font-size:14px;transition:.15s;background:#fff}
+.opt:hover{border-color:var(--green2);background:#f7fbf9}
+.opt.sel{border-color:var(--green);background:var(--green-bg);color:var(--green);font-weight:600}
+.opt .box{width:16px;height:16px;border:1.5px solid #c3ccc8;border-radius:4px;margin-top:3px;flex:none;
+  display:inline-flex;align-items:center;justify-content:center;font-size:11px;color:#fff}
+.opt.sel .box{background:var(--green);border-color:var(--green)}
+.opt.multi .box{border-radius:4px}
+.opt.single .box{border-radius:50%}
+
+/* 提交区 */
+.submit{margin:26px 0;text-align:center}
+.progress{font-size:13px;color:var(--ink2);margin-bottom:12px}
+.bar{height:6px;background:#eceff0;border-radius:4px;overflow:hidden;max-width:340px;margin:0 auto 16px}
+.bar i{display:block;height:100%;background:var(--green);width:0;transition:.3s}
+button.primary{background:var(--green);color:#fff;border:none;border-radius:10px;padding:13px 40px;
+  font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(31,95,79,.25)}
+button.primary:disabled{background:#b9c6c1;cursor:not-allowed;box-shadow:none}
+button.ghost{background:#fff;color:var(--green);border:1px solid var(--green);border-radius:10px;
+  padding:10px 22px;font-size:14px;cursor:pointer;margin:0 6px}
+
+/* 加载 */
+.loading{text-align:center;padding:40px 0;display:none}
+.spin{width:34px;height:34px;border:3px solid var(--green-bg);border-top-color:var(--green);
+  border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 16px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.loading p{color:var(--green);font-size:15px;font-weight:600;margin:0}
+.loading small{color:var(--ink2)}
+
+/* 报告 */
+.report{display:none}
+.summary{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+.summary h2{margin:0 0 14px;font-size:18px;color:var(--green)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{border-bottom:1px solid var(--border);padding:9px 8px;text-align:left;vertical-align:top}
+th{width:132px;color:var(--ink2);font-weight:500;background:#fafcfb}
+.badge{display:inline-block;padding:2px 9px;border-radius:11px;font-size:11.5px;font-weight:600;margin-left:8px}
+.badge.A{background:var(--green-bg);color:var(--green)}
+.badge.B{background:var(--amber-bg);color:var(--amber)}
+.badge.C{background:var(--red-bg);color:var(--red)}
+.lvnote{font-size:12.5px;color:var(--ink2);line-height:2.1;margin:0 0 14px;
+  padding:9px 12px;background:#f6f8f6;border:1px dashed var(--border);border-radius:8px}
+.lvnote .badge{margin:0 5px 0 0}
+.concl{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px}
+.concl h3{margin:0 0 8px;font-size:15.5px;line-height:1.6}
+.concl p{margin:0;font-size:14px;color:var(--ink);white-space:pre-wrap}
+.toggle{margin-top:12px;font-size:13px;color:var(--green);cursor:pointer;user-select:none;
+  display:inline-flex;align-items:center;gap:5px;font-weight:600}
+.evlist{display:none;margin-top:10px}
+.evlist.show{display:block}
+.ev{background:#f6f8f6;border-left:3px solid #8fb9a8;border-radius:0 7px 7px 0;padding:9px 12px;margin:7px 0;font-size:13px}
+.ev.evc{background:#fdf8ef;border-left-color:#c9973f}
+.ev.evc b{color:#8a5a1f}
+.ev b{color:var(--green);font-size:12.5px}
+.ev .txt{color:#4a5b50;margin-top:3px;font-size:12.5px;line-height:1.6}
+.ev .loc{color:#8a948e;font-size:11.5px;margin-top:2px}
+/* 引用古籍与文献一览 */
+.bib{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;margin-bottom:12px;overflow-x:auto}
+.bib table{font-size:13px}
+.bib th{background:#fafcfb;color:var(--ink2);font-weight:500}
+.bib td,.bib th{border-bottom:1px solid var(--border);padding:8px 8px;text-align:left;vertical-align:top}
+.bib .src{color:var(--ink2);font-size:12px}
+.bib .bdesc{color:var(--ink2);font-size:12px;margin-top:3px;line-height:1.55}
+.ktag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.ktag.bk1{background:#fdf1e3;color:#8a4b1f}   /* 古籍 */
+.ktag.bk2{background:#eef3ec;color:#4b6b3a}   /* 方书/教材 */
+.ktag.bk3{background:#e8f0f7;color:#2c5b86}   /* 现代文献 */
+.ktag.bk4{background:#f0eee8;color:#6b6459}   /* 专科资料 */
+.ktag.bk5{background:var(--red-bg);color:var(--red)}  /* 安全表 */
+.disc{background:#fff8e1;border:1px solid #f0d9a0;border-radius:10px;padding:14px 16px;
+  font-size:13px;color:#7a5c00;margin:20px 0}
+.redbox{background:var(--red-bg);border:1px solid #f5c6c2;border-radius:12px;padding:18px 20px;color:#8b1f16;margin-bottom:14px}
+/* 日常调理建议 */
+.care{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px}
+.care h3{margin:0 0 10px;font-size:15.5px;display:flex;align-items:center;gap:6px}
+.care ul{margin:0;padding-left:20px}
+.care li{margin-bottom:9px;font-size:14px}
+.care .note{font-size:12.5px;color:var(--amber);background:var(--amber-bg);border-radius:7px;padding:6px 10px;margin-top:8px}
+.chk{display:flex;align-items:flex-start;gap:9px;border-bottom:1px solid var(--border);padding:9px 2px;font-size:14px}
+.chk:last-child{border-bottom:none}
+.chk input{width:17px;height:17px;margin-top:3px;accent-color:var(--green);cursor:pointer;flex:none}
+.chk.done .t{text-decoration:line-through;color:var(--ink2)}
+.chk .tm{display:inline-block;min-width:46px;color:var(--green);font-weight:600;font-size:13px}
+.chk .nt{display:block;color:var(--ink2);font-size:12.5px;margin-top:2px}
+
+/* 手机号建档入口 */
+.gate{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:22px 24px;margin:0 auto 20px;max-width:560px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.gate h2{margin:0 0 8px;font-size:18px;color:var(--green)}
+.gate .desc{font-size:13px;color:var(--ink2);margin:0 0 14px;line-height:1.7}
+.prow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.prow input{flex:1;min-width:210px;border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;font-size:16px;letter-spacing:1px;outline:none}
+.prow input:focus{border-color:var(--green);background:#f7fbf9}
+.prow button{padding:12px 26px;font-size:15px;border-radius:10px}
+.perr{color:var(--red);font-size:13px;margin-top:9px;min-height:18px}
+.plinks{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+.plinks .tmini{color:var(--green);cursor:pointer;text-decoration:underline;font-size:13px}
+.plinks .who{font-size:12.5px;color:var(--ink2)}
+.hlist{margin-top:14px}
+.hitem{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.hitem .ht{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13.5px}
+.hitem .ht b{color:var(--green)}
+.hitem .hm{font-size:12.5px;color:var(--ink2);margin-top:4px}
+.hitem .ha{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+.hitem .ha a,.hitem .ha button{font-size:12.5px;padding:6px 12px;border:1px solid var(--green);
+  border-radius:8px;color:var(--green);background:#fff;text-decoration:none;cursor:pointer}
+.hitem.red{border-color:#f5c6c2;background:var(--red-bg)}
+.hempty{font-size:13.5px;color:var(--ink2);padding:10px 0}
+.who-bar{background:var(--green-bg);border:1px solid #cfe3da;border-radius:10px;
+  padding:9px 14px;font-size:13px;color:var(--green);margin-bottom:14px;display:flex;
+  justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.who-bar span.link{text-decoration:underline;cursor:pointer}
+
+/* 顶部：查询历史报告入口 */
+.hist-entry{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  background:var(--green-bg);border:1px solid #cfe3da;border-radius:12px;padding:12px 16px;margin:0 0 16px}
+.hist-entry .t{font-size:13px;color:var(--green);line-height:1.6}
+/* 建档对话框（提交时弹出） */
+.mask{position:fixed;inset:0;background:rgba(16,32,26,.45);display:flex;align-items:center;
+  justify-content:center;padding:20px;z-index:50}
+.dlg{background:#fff;border-radius:16px;max-width:520px;width:100%;padding:24px 26px;
+  box-shadow:0 20px 60px rgba(0,0,0,.28)}
+.dlg h2{margin:0 0 8px;font-size:18px;color:var(--green)}
+.dlg .desc{font-size:13px;color:var(--ink2);margin:0 0 16px;line-height:1.8}
+.dlgbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.dlgbtns button{flex:1;min-width:132px;padding:12px 14px;font-size:15px;border-radius:10px}
+.dlg .tip{font-size:12px;color:var(--ink2);margin-top:12px;line-height:1.7}
+.guest-note{background:#fff8e1;border:1px solid #f0d9a0;border-radius:10px;padding:12px 16px;
+  font-size:13px;color:#7a5c00;margin:0 0 14px;line-height:1.8}
+.dl{text-align:center;margin:22px 0}
+.dl a{display:inline-block;margin:0 6px;padding:10px 20px;border:1px solid var(--green);
+  border-radius:9px;color:var(--green);text-decoration:none;font-size:14px;background:#fff}
+.dl a:hover{background:var(--green-bg)}
+/* 报告分区折叠 */
+details.sec{background:transparent;border:0;margin:22px 0 0}
+details.sec>summary{list-style:none;cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px;
+  color:var(--green);font-size:18px;font-weight:600;margin:0 0 12px;padding:10px 14px;
+  background:var(--card);border:1px solid var(--border);border-radius:10px}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary::before{content:"▸";font-size:14px;color:var(--green2);transition:transform .15s}
+details.sec[open]>summary::before{content:"▾"}
+details.sec>summary:hover{background:var(--green-bg)}
+details.sec>summary .cnt{font-size:12.5px;color:var(--ink2);font-weight:400}
+details.sec .sec-body{padding:2px 0 6px}
+footer{text-align:center;font-size:12px;color:var(--ink2);margin-top:30px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>眼健康自查助手</h1>
+    <p>采集病情 → 本地库检索 → 中医辨证 → 溯源报告　·　依据全部来自中医眼科技能库（五轮八廓·病种分证·方药·古籍）</p>
+  </header>
+
+  <div class="steps">
+    <div class="step" id="st1"><b>1</b>采集（11题）</div>
+    <div class="step" id="st2"><b>2</b>本地库检索</div>
+    <div class="step" id="st3"><b>3</b>中医辨证</div>
+    <div class="step" id="st4"><b>4</b>溯源报告</div>
+  </div>
+
+  <div class="meta" id="meta">正在加载题库…</div>
+
+  <!-- 问诊：打开页面直接作答 -->
+  <div id="flow">
+    <div class="hist-entry">
+      <span class="t">已有报告？点击查询历史报告</span>
+      <button class="ghost" id="toHistory">📂 查询我的历史报告</button>
+    </div>
+    <div id="quiz"></div>
+
+    <div class="submit" id="submitBox">
+      <div class="bar"><i id="barFill"></i></div>
+      <div class="progress" id="progress">0 / 10 已作答</div>
+      <button class="primary" id="btnSubmit" disabled>生成辨证报告</button>
+    </div>
+  </div>
+
+  <!-- 历史报告查询 -->
+  <div class="gate" id="histBox" style="display:none">
+    <h2>📂 查询我的历史报告</h2>
+    <p class="desc">输入建档时使用的手机号，调出全部历史辨证报告。<br>
+      未建档（跳过）的报告，不支持查询。</p>
+    <div class="prow">
+      <input id="histPhone" type="tel" inputmode="numeric" maxlength="11" placeholder="请输入 11 位手机号">
+      <button class="primary" id="btnQuery">查询</button>
+      <button class="ghost" id="btnBackQuiz">返回问诊</button>
+    </div>
+    <div class="perr" id="histErr"></div>
+    <div class="hlist" id="histList"></div>
+  </div>
+
+  <!-- 建档对话框：点「生成辨证报告」后弹出 -->
+  <div class="mask" id="dlgMask" style="display:none">
+    <div class="dlg">
+      <h2>🔐 是否为本次报告建档？</h2>
+      <p class="desc">填手机号建档：本次报告归档到该号码下，日后凭同一手机号可查询、下载。<br>
+        不想留手机号？点「跳过」：报告不建档直接生成，之后不可查询。</p>
+      <div class="prow">
+        <input id="dlgPhone" type="tel" inputmode="numeric" maxlength="11" placeholder="请输入 11 位手机号（可留空）">
+      </div>
+      <div class="perr" id="dlgErr"></div>
+      <div class="dlgbtns">
+        <button class="primary" id="dlgOk">确认并生成</button>
+        <button class="ghost" id="dlgSkip">跳过，直接生成</button>
+        <button class="ghost" id="dlgCancel">取消</button>
+      </div>
+      <div class="tip">手机号仅脱敏展示（138****8888），不联网、不外传。</div>
+    </div>
+  </div>
+
+  <!-- 加载 -->
+  <div class="loading" id="loading">
+    <div class="spin"></div>
+    <p id="loadText">正在检索本地中医眼科知识库…</p>
+    <small>第二步 本地库检索 · 第三步 中医辨证 · 第四步 报告落盘</small>
+  </div>
+
+  <!-- 报告 -->
+  <div class="report" id="report"></div>
+
+  <footer>本工具为学习参考与就医准备材料，不构成诊断或处方；具体诊疗须经执业中医师 / 中医眼科医师面诊。</footer>
+</div>
+
+<script>
+const LOAD_STEPS = [
+  "第一步：读取病情采集结果（含年龄区间）…",
+  "第二步：检索本地中医眼科知识库（五轮/病种/方药/古籍）…",
+  "第三步：五轮定位 → 八纲定性 → 落证 → 方证核对 → 安全校验…",
+  "第三步：按年龄区间匹配眼病谱、筛查节奏与用药注意…",
+  "第四步：生成报告（逐条结论附依据）并保存文件…"
+];
+let stepTimer=null, stepIdx=0;
+
+const quizEl=document.getElementById('quiz'), reportEl=document.getElementById('report');
+let QUESTIONS=[], answers={};
+/* PHONE 只用于预填「历史查询 / 建档」输入框；本次档案记在 CUR 里 */
+let PHONE=localStorage.getItem('eyeCare.phone')||'';
+let CUR={kind:'', phone:'', masked:'', token:''};
+
+/* ===================== 档案：手机号建档 / 本机访客建档 ===================== */
+const PHONE_RE=/^1[3-9]\d{9}$/;
+function normPhone(v){ return String(v||'').replace(/[\s\-()（）]/g,'').replace(/^\+/,'').replace(/^86(?=\d{11}$)/,''); }
+function maskPhone(p){ return p&&p.length===11 ? p.slice(0,3)+'****'+p.slice(-4) : p; }
+
+function showFlow(){
+  document.getElementById('histBox').style.display='none';
+  document.getElementById('flow').style.display='block';
+  document.getElementById('loading').style.display='none';
+  /* 提交时把提交区隐藏过，返回问诊必须复位，否则「生成辨证报告」按钮不显示 */
+  document.getElementById('submitBox').style.display='';
+}
+function openDialog(){
+  const inp=document.getElementById('dlgPhone');
+  inp.value=PHONE||'';
+  document.getElementById('dlgErr').textContent='';
+  document.getElementById('dlgMask').style.display='flex';
+  setTimeout(()=>inp.focus(),60);
+}
+function closeDialog(){ document.getElementById('dlgMask').style.display='none'; }
+
+document.getElementById('dlgOk').addEventListener('click',()=>{
+  const v=normPhone(document.getElementById('dlgPhone').value);
+  const err=document.getElementById('dlgErr');
+  if(!v){ err.textContent='请填写 11 位手机号；不想留号码就点「跳过，直接生成」'; return; }
+  if(!PHONE_RE.test(v)){ err.textContent='手机号格式不对：需 1 开头的 11 位数字'; return; }
+  PHONE=v; localStorage.setItem('eyeCare.phone',v);
+  closeDialog(); runConsult(v);
+});
+document.getElementById('dlgSkip').addEventListener('click',()=>{ closeDialog(); runConsult(''); });
+document.getElementById('dlgCancel').addEventListener('click',closeDialog);
+document.getElementById('dlgMask').addEventListener('click',e=>{
+  if(e.target.id==='dlgMask') closeDialog();
+});
+document.getElementById('dlgPhone').addEventListener('keydown',e=>{
+  if(e.key==='Enter') document.getElementById('dlgOk').click();
+});
+document.getElementById('dlgPhone').addEventListener('input',()=>{
+  document.getElementById('dlgErr').textContent='';
+});
+
+document.getElementById('toHistory').addEventListener('click',()=>{ goHistory(); });
+document.getElementById('btnBackQuiz').addEventListener('click',()=>{ showFlow(); });
+document.getElementById('btnQuery').addEventListener('click',()=>{
+  const v=normPhone(document.getElementById('histPhone').value);
+  const err=document.getElementById('histErr');
+  if(!PHONE_RE.test(v)){ err.textContent='请填写有效的 11 位手机号（1 开头）'; return; }
+  err.textContent=''; PHONE=v; localStorage.setItem('eyeCare.phone',PHONE); queryHistory(v);
+});
+document.getElementById('histPhone').addEventListener('keydown',e=>{
+  if(e.key==='Enter') document.getElementById('btnQuery').click();
+});
+
+async function queryHistory(phone){
+  const box=document.getElementById('histList');
+  box.innerHTML='<div class="hempty">正在查询…</div>';
+  try{
+    const r=await fetch('/api/reports?phone='+encodeURIComponent(phone)).then(x=>x.json());
+    if(!r.ok){ box.innerHTML='<div class="hempty">'+(r.error||'查询失败')+'</div>'; return; }
+    if(!r.total){ box.innerHTML=`<div class="hempty">手机号 ${esc(r.phone_masked)} 下暂无历史报告。</div>`; return; }
+    box.innerHTML=r.records.map((it,i)=>`
+      <div class="hitem ${it.red_flag?'red':''}">
+        <div class="ht"><span><b>${i+1}. ${esc(it.created_at)}</b>　${esc(it.dz)}　|　${esc(it.dz_western)}</span>
+          <span>${esc(it.phone_masked)}　${esc(it.age_label)}</span></div>
+        <div class="hm">证型：${esc(it.syndrome)}${it.red_flag?'　·　⛔ 红线预警报告':''}</div>
+        <div class="ha">
+          <a href="${it.download.html}" target="_blank">📄 打开报告</a>
+          <a href="${it.download.md}" target="_blank">⬇ 下载 MD</a>
+          <button onclick="loadRecord('${it.id}','${phone}','${it.download.md}','${it.download.html}')">在本页展开</button>
+        </div>
+      </div>`).join('');
+  }catch(e){ box.innerHTML='<div class="hempty">请求失败：'+esc(e.message)+'</div>'; }
+}
+
+function goHistory(){
+  reportEl.style.display='none';
+  document.getElementById('flow').style.display='none';
+  document.getElementById('histBox').style.display='block';
+  document.getElementById('histPhone').value=PHONE||'';
+  document.getElementById('histErr').textContent='';
+  document.getElementById('histList').innerHTML=
+    PHONE?'<div class="hempty">正在查询…</div>':'';
+  if(PHONE) queryHistory(PHONE);
+}
+
+async function loadRecord(rid,phone,md,html){
+  const box=document.getElementById('histList');
+  try{
+    const r=await fetch(`/api/records/${rid}?phone=${encodeURIComponent(phone)}`).then(x=>x.json());
+    if(!r.ok){ alert(r.error||'读取失败'); return; }
+    CUR={kind:'phone', phone:phone, masked:r.result.phone_masked||maskPhone(phone), token:''};
+    document.getElementById('histBox').style.display='none';
+    renderReport(r.result,{md,html});
+  }catch(e){ alert('读取失败：'+e.message); }
+}
+
+async function init(){
+  const r=await fetch('/api/questions').then(x=>x.json());
+  QUESTIONS=r.questions;
+  document.getElementById('meta').textContent =
+    `已加载 · 中医眼科知识库索引 ${r.lib.paragraphs} 个段落`;
+  if(PHONE) document.getElementById('histPhone').value=PHONE;
+  renderQuiz();
+}
+
+function renderQuiz(){
+  quizEl.innerHTML=QUESTIONS.map((q,i)=>`
+    <div class="qcard">
+      <div class="qhead">
+        <span class="qno">${i+1}</span>
+        <span class="qtitle">${q.title}</span>
+        <span class="qtag">${q.step}</span>
+      </div>
+      <div class="qhint">${q.hint}</div>
+      <div class="opts">
+        ${q.options.map(o=>`
+          <div class="opt ${q.type==='multi'?'multi':'single'}" data-q="${q.id}" data-v="${o.value}" data-t="${q.type}">
+            <span class="box">${q.type==='multi'?'✓':'●'}</span>
+            <span>${o.label}</span>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  quizEl.querySelectorAll('.opt').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const qid=el.dataset.q, val=el.dataset.v, type=el.dataset.t;
+      if(type==='multi'){
+        let arr=answers[qid]||[];
+        if(arr.includes(val)){ arr=arr.filter(v=>v!==val); } else { arr.push(val); }
+        // 互斥处理："都没有/无特殊/都没有" 与具体项
+        const noneVals=['none','unknown'];
+        if(noneVals.includes(val)&&arr.length>1){ arr=[val]; }
+        else if(arr.length>1&&arr.some(v=>noneVals.includes(v))){ arr=arr.filter(v=>!noneVals.includes(v)); }
+        answers[qid]=arr;
+      }else{
+        answers[qid]=val;
+      }
+      syncSel(qid);
+      updateProgress();
+    });
+  });
+  updateProgress();
+}
+
+function syncSel(qid){
+  quizEl.querySelectorAll(`.opt[data-q="${qid}"]`).forEach(el=>{
+    const cur=answers[qid];
+    const on=Array.isArray(cur)?cur.includes(el.dataset.v):cur===el.dataset.v;
+    el.classList.toggle('sel',!!on);
+  });
+}
+
+function updateProgress(){
+  const n=Object.keys(answers).filter(k=>{
+    const v=answers[k]; return Array.isArray(v)?v.length>0:(v!==undefined&&v!=='');
+  }).length;
+  document.getElementById('progress').textContent=`${n} / ${QUESTIONS.length} 已作答`;
+  document.getElementById('barFill').style.width=(n/QUESTIONS.length*100)+'%';
+  document.getElementById('btnSubmit').disabled = n<QUESTIONS.length;
+}
+
+document.getElementById('btnSubmit').addEventListener('click',()=>{ openDialog(); });
+
+async function runConsult(phone){
+  document.getElementById('submitBox').style.display='none';
+  document.getElementById('flow').style.display='none';
+  const ld=document.getElementById('loading'); ld.style.display='block';
+  stepIdx=0; document.getElementById('loadText').textContent=LOAD_STEPS[0];
+  stepTimer=setInterval(()=>{
+    stepIdx=(stepIdx+1)%LOAD_STEPS.length;
+    document.getElementById('loadText').textContent=LOAD_STEPS[stepIdx];
+  },900);
+  markStep(2);
+
+  try{
+    const res=await fetch('/api/consult',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({answers, phone: phone||'', register: !!phone})
+    }).then(x=>x.json());
+    clearInterval(stepTimer); ld.style.display='none';
+    if(!res.ok){
+      alert('生成失败：'+(res.error||'未知错误'));
+      document.getElementById('flow').style.display='block';
+      document.getElementById('submitBox').style.display='block';
+      return;
+    }
+    markStep(4);
+    CUR={kind:res.kind||'phone', phone:phone||'',
+         masked:(res.result&&res.result.phone_masked)||maskPhone(phone),
+         token:(res.record&&res.record.token)||''};
+    renderReport(res.result,res.download);
+  }catch(e){
+    clearInterval(stepTimer); ld.style.display='none';
+    document.getElementById('flow').style.display='block';
+    document.getElementById('submitBox').style.display='block';
+    alert('请求失败：'+e.message);
+  }
+}
+
+function markStep(n){
+  for(let i=1;i<=4;i++){
+    const el=document.getElementById('st'+i);
+    if(!el)continue;
+    el.classList.toggle('active', i<=n);
+  }
+}
+markStep(1);
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+/* 报告下载链接由服务端下发，已自带归属校验参数（phone= 或 token=），前端不再拼接 */
+
+/* 单条结论 + 可折叠的依据列表（古籍原文用 📜 标记并高亮） */
+function evBlock(c){
+  const evs=c.evidence||[];
+  let h=`<h3 style="margin:12px 0 6px">${esc(c.title)}</h3><p>${esc(c.body)}</p>`;
+  if(!evs.length) return h;
+  h+=`<div class="toggle" onclick="this.nextElementSibling.classList.toggle('show');this.textContent=this.nextElementSibling.classList.contains('show')?'▾ 收起依据':'▸ 查看依据 / 参考资料（'+${evs.length}+'）'">▸ 查看依据 / 参考资料（${evs.length}）</div>
+    <div class="evlist">${evs.map(e=>{
+      const loc=[e.file,e.section,e.line?('第'+e.line+'行'):''].filter(Boolean).join(' · ');
+      const tag=e.cite_label?`${e.is_classic?'📜 ':''}【${e.src_kind||''}】${e.cite_label}`:'';
+      return `<div class="ev${e.is_classic?' evc':''}">${tag?`<b>${esc(tag)}</b>`:''}
+        <div class="loc">${esc(loc)}</div><div class="txt">${esc(e.text)}</div></div>`;
+    }).join('')}</div>`;
+  return h;
+}
+
+/* 本次报告的档案信息：手机号建档可查询，未建档（跳过）不可查询 */
+function acctInfo(R){
+  const isGuest = CUR.kind === 'ip';
+  const acct = isGuest
+    ? '未建档，本次报告不可查询'
+    : (R.phone_masked || CUR.masked || maskPhone(CUR.phone) || '—');
+  const tip = isGuest
+    ? ''
+    : '<span style="color:var(--ink2);font-size:12.5px">　凭此号可在本机查询历史报告</span>';
+  const guest = isGuest
+    ? '<div class="guest-note">本次选择了「跳过」：报告已生成，但之后<b>无法用手机号查询</b>。'
+      + '如需留存请先下载保存；下次填写手机号建档，即可随时调回。</div>'
+    : '';
+  return {acct, tip, guest};
+}
+
+function renderReport(R,dl){
+  const A=acctInfo(R);
+  if(R.red_flag){
+    const careHtml=renderCare(R);
+    reportEl.innerHTML=`${A.guest}<div class="redbox">
+      <h2 style="margin:0 0 10px">⛔ 红线预警</h2>
+      <p style="font-size:13px">档案：<b>${esc(A.acct)}</b>${A.tip}</p>
+      ${R.conclusions.map(c=>evBlock(c)).join('')}
+    </div>${careHtml}${renderBib(R)}<div class="disc">${esc(R.disclaimer)}</div>
+    ${dl?`<div class="dl"><a href="${dl.md}" target="_blank">⬇ 下载 Markdown 报告</a>
+      <a href="${dl.html}" target="_blank">⬇ 下载 HTML 报告</a></div>`:''}
+    <div style="text-align:center;margin:20px 0">
+      <button class="ghost" onclick="goHistory()">查询我的历史报告</button>
+      <button class="ghost" onclick="location.reload()">重新填写</button></div>`;
+    reportEl.style.display='block'; return;
+  }
+  const s=R.summary;
+  let cand=(s.dz_candidates_detail||[]).map(c=>`${c.dz}（${c.western}）`).join('；')
+          || (s.dz_candidates||[]).join('、');
+  let html=`${A.guest}<div class="summary"><h2>辨证摘要</h2><table>
+    <tr><th>档案</th><td><b>${esc(A.acct)}</b>${A.tip}</td></tr>
+    <tr><th>病种 / 西医对应</th><td><b>${esc(s.dz)}</b>　|　${esc(s.dz_western)}</td></tr>
+    <tr><th>鉴别候选（含西医对应）</th><td>${esc(cand)}</td></tr>
+    <tr><th>五轮定位</th><td>${esc(s.wheel)}（${esc(s.zang)}）</td></tr>
+    <tr><th>证型</th><td><b>${esc(s.syndrome)}</b>（${esc(s.nature)}）</td></tr>
+    <tr><th>治法</th><td>${esc(s.method)}</td></tr>
+    <tr><th>候选方（B级）</th><td>${esc(s.formulas.join('、'))}</td></tr>
+    <tr><th>关键药群</th><td>${esc(s.herbs.join('、'))}</td></tr>
+    <tr><th>禁忌提示</th><td>${s.contraindications.length?esc(s.contraindications.join('、')):'无'}</td></tr>
+    <tr><th>年龄区间</th><td>${esc(s.age_label||'未提供')}</td></tr>
+  </table></div>`;
+
+  html+=`<details class="sec"><summary>结论与依据（逐条溯源）<span class="cnt">点击展开 / 收起</span></summary>
+  <div class="sec-body">
+  <div class="lvnote">
+    <span class="badge A">A 级</span>可直接执行：起居、食疗、用眼节律等自我调护，可自行照做；
+    <span class="badge B">B 级</span>须医师把关：辨证、方药、点眼制剂，须执业中医师面诊确认后使用；
+    <span class="badge C">C 级</span>医疗升级/转诊：疑似急症红线，须立即就医或转眼科急诊。
+  </div>`;
+  R.conclusions.forEach((c,i)=>{
+    const evs=c.evidence||[];
+    html+=`<div class="concl">
+      <h3>${i+1}. ${esc(c.title)}<span class="badge ${c.level}">${c.level} 级</span></h3>
+      <p>${esc(c.body)}</p>
+      ${evs.length?`<div class="toggle" onclick="this.nextElementSibling.classList.toggle('show');this.textContent=this.nextElementSibling.classList.contains('show')?'▾ 收起依据':'▸ 查看依据 / 参考资料（'+${evs.length}+'）'">▸ 查看依据 / 参考资料（${evs.length}）</div>
+      <div class="evlist">${evs.map(e=>{
+        const loc=[e.file,e.section,e.line?('第'+e.line+'行'):''].filter(Boolean).join(' · ');
+        const tag=e.cite_label?`${e.is_classic?'📜 ':''}【${e.src_kind||''}】${e.cite_label}`:'';
+        return `<div class="ev${e.is_classic?' evc':''}">${tag?`<b>${esc(tag)}</b>`:''}
+          <div class="loc">${esc(loc)}</div><div class="txt">${esc(e.text)}</div></div>`;
+      }).join('')}</div>`:''}
+    </div>`;
+  });
+  html+=`</div></details>`;
+
+  html+=renderBib(R);
+
+  html+=renderCare(R);
+
+  html+=`<div class="dl">
+    <a href="${dl.md}" target="_blank">⬇ 下载 Markdown 报告</a>
+    <a href="${dl.html}" target="_blank">⬇ 下载 HTML 报告</a>
+  </div>
+  <div class="disc">${esc(R.disclaimer)}</div>
+  <div style="text-align:center;margin:20px 0">
+    <button class="ghost" onclick="goHistory()">查询我的历史报告</button>
+    <button class="ghost" onclick="location.reload()">重新填写</button></div>`;
+
+  reportEl.innerHTML=html;
+  reportEl.style.display='block';
+  reportEl.scrollIntoView({behavior:'smooth'});
+}
+
+/* ===================== 引用古籍与文献一览 ===================== */
+const KIND_CLS={'古籍':'bk1','方书':'bk2','教材':'bk2','现代文献':'bk3','专科资料':'bk4','安全表':'bk5'};
+function renderBib(R){
+  const bib=R.bibliography||[];
+  if(!bib.length) return '';
+  let h=`<details class="sec"><summary>📚 引用古籍与文献一览<span class="cnt">共 ${bib.length} 条 · 点击展开 / 收起</span></summary>
+    <div class="sec-body"><div class="bib"><table>
+    <tr><th>类别</th><th>古籍 / 文献</th><th style="width:110px">朝代·作者</th>
+        <th style="width:56px">被引</th><th>出处示例</th></tr>`;
+  bib.forEach(b=>{
+    h+=`<tr><td><span class="ktag ${KIND_CLS[b.kind]||'bk4'}">${esc(b.kind)}</span></td>
+      <td><b>${esc(b.name)}</b>${b.desc?`<div class="bdesc">${esc(b.desc)}</div>`:''}</td>
+      <td class="src">${esc(b.author||'—')}</td>
+      <td class="src">${b.count} 处</td>
+      <td class="src">${(b.locs||[]).slice(0,2).map(l=>`<div>${esc(l)}</div>`).join('')}</td></tr>`;
+  });
+  h+=`</table></div></div></details>`;
+  return h;
+}
+
+/* ===================== 日常调理建议 ===================== */
+let CARE=null;
+function today(){return new Date().toISOString().slice(0,10);}
+const LS_CK='eyeCare.ck';
+
+function renderCare(R){
+  CARE=R.daily_care||null;
+  if(!CARE) return '';
+  let h=`<details class="sec" open><summary>日常调理建议（A 级 · 可直接执行）<span class="cnt">已展开 · 点击收起</span></summary>
+    <div class="sec-body">`;
+  CARE.blocks.forEach(b=>{
+    h+=`<div class="care"><h3>${b.icon||''} ${esc(b.title)}<span class="badge ${b.level||'A'}">${b.level||'A'} 级</span></h3><ul>`;
+    (b.items||[]).forEach(it=>{
+      const evs=it.evidence||[];
+      h+=`<li>${esc(it.text)}`;
+      if(evs.length){
+        h+=`<div class="toggle" onclick="this.nextElementSibling.classList.toggle('show');this.textContent=this.nextElementSibling.classList.contains('show')?'▾ 收起依据':'▸ 依据 / 参考资料（'+${evs.length}+'）'">▸ 依据 / 参考资料（${evs.length}）</div>
+        <div class="evlist">${evs.map(e=>{
+          const loc=[e.file,e.section,e.line?('第'+e.line+'行'):''].filter(Boolean).join(' · ');
+          const tag=e.cite_label?`${e.is_classic?'📜 ':''}【${e.src_kind||''}】${e.cite_label}`:'';
+          return `<div class="ev${e.is_classic?' evc':''}">${tag?`<b>${esc(tag)}</b>`:''}
+            <div class="loc">${esc(loc)}</div><div class="txt">${esc(e.text)}</div></div>`;
+        }).join('')}</div>`;
+      }
+      h+=`</li>`;
+    });
+    h+=`</ul>`;
+    if(b.note) h+=`<div class="note">${esc(b.note)}</div>`;
+    h+=`</div>`;
+  });
+
+  const r=CARE.reminder||{};
+  const ck=JSON.parse(localStorage.getItem(LS_CK)||'{}')[today()]||{};
+  h+=`<div class="care"><h3>⏰ 用眼节律与随访打卡<span class="badge A">A 级</span></h3>
+    <div style="font-size:14.5px;margin-bottom:10px">用眼节律：每连续用眼 <b style="color:var(--green)">${r.work_minutes||40}</b> 分钟
+      → 起身休息 <b style="color:var(--green)">${r.rest_minutes||5}</b> 分钟</div>
+    <ol style="font-size:14px;padding-left:20px;margin:6px 0 14px">
+      ${(r.rest_steps||[]).map(s=>`<li>${esc(s.text)}<span style="color:var(--ink2)">（${s.t}秒）</span></li>`).join('')}
+    </ol>
+    <h4 style="margin:14px 0 6px;font-size:14.5px;color:var(--green)">每日打卡（当天有效，自动重置）</h4>`;
+  (r.daily_checklist||[]).forEach(c=>{
+    h+=`<label class="chk ${ck[c.id]?'done':''}" data-id="${c.id}">
+      <input type="checkbox" ${ck[c.id]?'checked':''} onchange="toggleCk('${c.id}',this.checked)">
+      <span><span class="tm">${esc(c.time)}</span><span class="t">${esc(c.task)}</span>
+      ${c.note?`<span class="nt">${esc(c.note)}</span>`:''}</span></label>`;
+  });
+  h+=`<h4 style="margin:16px 0 6px;font-size:14.5px;color:var(--green)">复查随访提醒</h4><ul style="font-size:14px">`;
+  (r.followups||[]).forEach(f=>{
+    h+=`<li><b>${esc(f.name)}</b>：${esc(f.cycle)}${f.note?`<div class="nt" style="color:var(--ink2);font-size:12.5px">${esc(f.note)}</div>`:''}</li>`;
+  });
+  h+=`</ul></div></div></details>`;
+  return h;
+}
+
+function toggleCk(id,on){
+  const o=JSON.parse(localStorage.getItem(LS_CK)||'{}');
+  const d=o[today()]||{}; d[id]=on; o[today()]=d;
+  localStorage.setItem(LS_CK,JSON.stringify(o));
+  const el=document.querySelector(`.chk[data-id="${id}"]`);
+  if(el) el.classList.toggle('done',on);
+}
+
+
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+# ============================================================================
+# 眼健康自查助手 · systemd 服务单元
+# @author  杨博 (yangbo621@163.com)
+# @license Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)
+#          https://creativecommons.org/licenses/by-nc/4.0/
+# （详见随包 LICENSE.txt / NOTICE.md；商业使用需另行获得书面授权）
+# ============================================================================
+
+[Unit]
+Description=中医眼科辨证智能体 (TCM Ophthalmology Agent)
+Documentation=file:/opt/eye-agent/README.md
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=eye-agent
+Group=eye-agent
+WorkingDirectory=/opt/eye-agent/app/backend
+EnvironmentFile=/etc/eye-agent.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONIOENCODING=utf-8
+# 统一走启动器：由 start.sh 读取 /etc/eye-agent.env 并 exec uvicorn，避免变量展开差异
+ExecStart=/opt/eye-agent/start.sh
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=15
+StandardOutput=append:/var/log/eye-agent/access.log
+StandardError=append:/var/log/eye-agent/error.log
+
+# 基础安全加固（仍以非 root 用户运行）
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/eye-agent /var/log/eye-agent
+
+[Install]
+WantedBy=multi-user.target
